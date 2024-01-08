@@ -135,7 +135,7 @@ void loop() {
     Serial.println();
     delay(1000);
     
-    // Default behaibour 
+    // Default behaviour 
     if(MBC == 5) {
       Serial.println("Default mode MBC5");
       readRamFromMBC5(0x00);
