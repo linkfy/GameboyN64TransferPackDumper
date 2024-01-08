@@ -35,12 +35,12 @@ unsigned char* printHex() {
         byte |= 1 << (7 - bit);
       }
     }
-    // Si el valor es menor que 16, agrega un cero a la izquierda para la impresión
+    // If value is less than 16, add a 0 to keep the format XX on Hex prints
     if (byte < 16) {
       Serial.print("0");
     }
     Serial.print(byte, HEX);
-    Serial.print(" "); // Espacio entre cada byte para mejor legibilidad
+    Serial.print(" "); // Space between bytes
     data[byteIndex] = byte;
   }
   Serial.println();
