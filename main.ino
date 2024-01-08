@@ -4,24 +4,6 @@ N64Controller player1 (2);
 
 void readRamFromMBC5(unsigned char bank = 0x00);
 
-void appendToString(String &str, unsigned char* data, size_t length) {
-    for (size_t i = 0; i < length; i++) {
-        str += (char)data[i];
-    }
-}
-
-void printStringInHex(const String &str) {
-    for (int i = 0; i < str.length(); i++) {
-        char ch = str.charAt(i);
-        if (ch < 16) { // Add 0 if number is less than 16 to maintain the XX format
-            Serial.print("0");
-        }
-        Serial.print(ch, HEX);
-        Serial.print(" "); // Add space between bytes
-    }
-    Serial.println(); 
-}
-
 unsigned short n64_addr_encode(unsigned short addr){
   unsigned char table[11]={0x15, 0x1F, 0x0B, 0x16, 0x19, 0x07, 0x0E,
   0x1C, 0x0D, 0x1A, 0x01};
@@ -41,20 +23,6 @@ void setup() {
     Serial.begin(9600);
     player1.begin(); // Initialisation
     
-}
-
-
-
-void printVals() {
-  Serial.println("Hex: ");
-    for (int i = 0; player1.interface->raw_dump[i] < 33; i++) {
-        Serial.print("0x"); // Prefix
-        if ((uint8_t)player1.interface->raw_dump[i] < 0x10) {
-            Serial.print("0"); // Add 0 if number is less than 16 to maintain the XX format
-        }
-        Serial.print((uint8_t)player1.interface->raw_dump[i], HEX); // Imprime el valor en hexadecimal
-        Serial.print(" ");  // Add space between bytes
-    }
 }
 
 unsigned char* printHex() {
@@ -78,32 +46,6 @@ unsigned char* printHex() {
   Serial.println();
   return data;
 }
-
-unsigned char* getHex() {
-  unsigned char* data = new unsigned char[32];
-  for (int byteIndex = 0; byteIndex < 32; byteIndex++) {
-    unsigned char byte = 0;
-    for (int bit = 0; bit < 8; bit++) {
-      if (player1.interface->raw_dump[byteIndex * 8 + bit]) {
-        byte |= 1 << (7 - bit);
-      }
-    }
-    // Si el valor es menor que 16, agrega un cero a la izquierda para la impresión
-  
-    data[byteIndex] = byte;
-  }
-  return data;
-}
-
-void sendCommand (unsigned char hex) {
-    unsigned char command[] = {hex};
-    noInterrupts();
-    player1.interface->send(command, 1);
-    player1.interface->get();
-    interrupts();
-}
-
-
 
 void sendCommands ( unsigned char command[], int len) {
     noInterrupts();
@@ -141,9 +83,6 @@ void loop() {
     sendCommands( command2 , 35);
     delay(40);
 
-   
-
-
     // Switch to bank 0
     unsigned char command3[] = {0x03, 0xA0, n64_addr_encode(0xA000), 
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // 8bytes
@@ -166,9 +105,10 @@ void loop() {
     Serial.println(*data, HEX);
     unsigned char cartType = data[8];
     int cartSize = 0;
-    unsigned char MBC = 5;
+    unsigned char MBC = 5; // Manually set MBC type for debugging purposes
+                           // This should be deleted on the future to use cartTypes instead
     switch(cartType) {
-      case 0x05:
+      case 0x05: // This is currently the only mode implemented to dump Pokemon Yellow & other MBC similar games
         cartSize = 1000; 
         Serial.println("Detected 1MB");
         if(MBC == 5) {
@@ -179,7 +119,7 @@ void loop() {
         }
         end();
         break;
-      case 0x06:
+      case 0x06: // TODO other cases should be implemented
         cartSize = 2000; 
         Serial.println("Detected 2MB");
         
@@ -195,6 +135,7 @@ void loop() {
     Serial.println();
     delay(1000);
     
+    // Default behaibour 
     if(MBC == 5) {
       Serial.println("Default mode MBC5");
       readRamFromMBC5(0x00);
@@ -205,6 +146,8 @@ void loop() {
     
 
     end();
+
+    // This code is never executed, is here as an example to debug cart data reqading in raw mode
     Serial.println("Read first 16kb [ 32 bytes x 512 Iterations]");
     String myString = "";
     for(int i = 0; i < 512; i++) {
@@ -217,13 +160,10 @@ void loop() {
         Serial.println(i);     
       }
       unsigned char* myChars = printHex();
-      delete(myChars);
-      
+      delete(myChars); // Important to avoid memory leaks (2kb of ram ONLY on arduino)
 
     }
     Serial.println("Done");
-    
-   
 
     end();
 }
@@ -272,7 +212,7 @@ void readRamFromMBC5(unsigned char bank = 0x00) {
     };
      sendCommands( switchPositionCommand2 , 35);
     delay(40);
-     // Now if we read 0xE000 we read RAM
+    // Now if we read 0xE000 we read RAM
     // Read first 8 KB
     for(int i = 0; i < 256; i++) {
       int pos = 0xE000 + i*32;
@@ -284,7 +224,7 @@ void readRamFromMBC5(unsigned char bank = 0x00) {
         Serial.println(i);     
       }
       unsigned char* myChars = printHex();
-      delete(myChars);
+      delete(myChars); // Important to avoid memory leaks (2kb of ram ONLY on arduino)
       
 
     }
@@ -295,48 +235,6 @@ void readRamFromMBC5(unsigned char bank = 0x00) {
     delay(1);
 }
 
-void restarter() {
-  // Disable power
-    unsigned char command0[] = {0x03, 0x80, n64_addr_encode(0x8000), 
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // 8bytes
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // 8bytes
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // 8bytes
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFE, // 8bytes
-    };
-    // Buttons Mode
-    unsigned char buttonsCommand[] = {0x01 };
-    sendCommands( buttonsCommand , 1);
-    delay(1);
-   // Enable power
-    unsigned char command[] = {0x03, 0x80, n64_addr_encode(0x8000), 
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // 8bytes
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // 8bytes
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // 8bytes
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x84, // 8bytes
-    };
-    sendCommands( command , 35);
-    delay(1);
-
-    // Enable cartridge access mode
-    unsigned char command2[] = {0x03, 0xB0, n64_addr_encode(0xB000), 
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // 8bytes
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // 8bytes
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // 8bytes
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, // 8bytes
-    };
-    sendCommands( command2 , 35);
-    delay(1);
-
-    // Switch to bank 0
-    unsigned char command3[] = {0x03, 0xA0, n64_addr_encode(0xA000), 
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // 8bytes
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // 8bytes
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // 8bytes
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // 8bytes
-    };
-    sendCommands( command3 , 35);
-    delay(1);
-}
 
 /* Code used for initial signal testing [Incorrect values returned]
 const int pin = 2;
