@@ -216,7 +216,7 @@ void readRamFromMBC5(unsigned char bank = 0x00) {
     // Read first 8 KB
     for(int i = 0; i < 256; i++) {
       int pos = 0xE000 + i*32;
-      unsigned char highByte = (pos >> 8) & 0xFF; // Desplaza 8 bits y obtiene el byte más alto
+      unsigned char highByte = (pos >> 8) & 0xFF; //Move 8 bits and get the higher one
       unsigned char command4[] = {0x02, highByte, n64_addr_encode(pos)};
       sendCommands( command4 , 3);
       //delay(1);
